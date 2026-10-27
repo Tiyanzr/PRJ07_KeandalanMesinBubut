@@ -16,6 +16,7 @@ SILVER  = ROOT / "data" / "silver" / PATCH
 MACHINES     = {3: "Machine 3", 4: "Machine 4 (krakatau)"}
 TEST_DAYS    = ["2026-06-15", "2026-06-29"]   # operator TEST/TESTING
 ANOMALY_DAYS = ["2026-07-10"]                 # rapid repeated button presses
+COMMISSIONING_STAFF = ["HANAFI", "REV"]      # PT Parametrik staff testing during installation (confirmed by researcher)
 TZ_DATA      = "UTC"                          # sensors, status log, maintenance history
 TZ_LOCAL     = "Asia/Jakarta"                 # emergencies are logged in local time (WIB)
 DUCKDB_TEMP  = "E:/duckdb_tmp"
