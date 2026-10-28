@@ -85,3 +85,50 @@ def runs(s):
 def flickers(s, state=3, max_len=2):
     """Number of `state` runs no longer than max_len samples (10 s on a 5 s grid)."""
     v, d, _ = runs(s); return int(np.sum((v == state) & (d <= max_len)))
+
+
+# ---------------------------------------------------------------- filters (notebook 03)
+def _by_segment(I, valid, fn):
+    """Apply fn to each run of consecutive valid samples; filters never cross data gaps."""
+    out = np.full(len(I), np.nan)
+    d = np.diff(np.r_[0, np.asarray(valid, int), 0])
+    for a, b in zip(np.flatnonzero(d == 1), np.flatnonzero(d == -1)):
+        out[a:b] = fn(np.asarray(I[a:b], float))
+    return out
+
+
+def moving_average(I, valid, w=3):
+    """Centred moving average over w samples (linear low-pass)."""
+    from scipy.ndimage import uniform_filter1d
+    return _by_segment(I, valid, lambda s: uniform_filter1d(s, w, mode="nearest"))
+
+
+def median(I, valid, w=3):
+    """Running median over w samples (non-linear; keeps step edges)."""
+    from scipy.ndimage import median_filter
+    return _by_segment(I, valid, lambda s: median_filter(s, w, mode="nearest"))
+
+
+def kalman(I, valid, q_over_r=0.1):
+    """Scalar Kalman filter, random-walk model x_k = x_{k-1} + w_k, y_k = x_k + v_k, at steady-state gain.
+    Prior variance P solves P^2 - qP - q = 0 (R = 1), gain K = P / (P + 1); then x_k = (1 - K) x_{k-1} + K y_k."""
+    from scipy.signal import lfilter
+    q = q_over_r
+    P = (q + np.sqrt(q * q + 4 * q)) / 2
+    K = P / (P + 1)
+    return _by_segment(I, valid, lambda s: lfilter([K], [1, -(1 - K)], s, zi=[(1 - K) * s[0]])[0])
+
+
+def min_duration(s, min_len=3):
+    """Merge runs shorter than min_len samples into the neighbouring state (output-side debounce); unknown (-1) kept."""
+    s = np.asarray(s).copy()
+    while True:
+        v, d, i = runs(s)
+        changed = False
+        for k in np.flatnonzero((d < min_len) & (v >= 0)):
+            a, b = i[k], i[k] + d[k]
+            nb = s[a - 1] if a > 0 and s[a - 1] >= 0 else (s[b] if b < len(s) and s[b] >= 0 else s[a])
+            if nb != s[a]:
+                s[a:b] = nb; changed = True
+        if not changed:
+            return s
