@@ -8,3 +8,4 @@ hmmlearn
 matplotlib
 openpyxl
 ipykernel
+daft-pgm
