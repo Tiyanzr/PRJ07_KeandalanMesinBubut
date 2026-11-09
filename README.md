@@ -1,5 +1,7 @@
 # PRJ07 - Lathe reliability (MTBF/MTTR)
 
+Concept Documentation : https://canva.link/3vgj0xuaq0f8eec
+
 Source data: `..\Raw Data\Monitoring Mesin Bubut` (bronze = sensors, ref = logs). All paths are in `config.py`; the active data patch is `PATCH`.
 
 ## Notebooks
