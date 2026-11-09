@@ -7,11 +7,20 @@ from hmmlearn.hmm import GaussianHMM
 
 STATE = {-1: "Unknown", 0: "Off", 1: "Panel", 2: "Started", 3: "Cutting"}
 LABEL_ID = {-1: "Tidak diketahui", 0: "Mati", 1: "Panel", 2: "Di-start", 3: "Memotong"}   # for CSV outputs
+STATE3 = {**STATE, 3: "Operating"}             # k = 3: started and cutting cannot be separated
+LABEL_ID3 = {**LABEL_ID, 3: "Beroperasi"}
+CODES = {3: np.array([0, 1, 3]), 4: np.array([0, 1, 2, 3])}   # rank of level -> state code
 EPS = 0.01  # A, avoids log(0)
 
 
-def log_current(I):
-    return np.log10(np.clip(np.asarray(I, float), 0, None) + EPS)
+def names(k):
+    return (STATE3, LABEL_ID3) if k == 3 else (STATE, LABEL_ID)
+
+
+def log_current(I, noise=0.0):
+    """x = log10(I + EPS); currents below the sensor noise floor are set to 0 first."""
+    I = np.clip(np.asarray(I, float), 0, None)
+    return np.log10(np.where(I < noise, 0.0, I) + EPS)
 
 
 def to_amps(x):
@@ -38,6 +47,11 @@ def find_valleys(x, n=4, bins=400, sigma=3):
 
 def threshold(x, valleys, delta=0.05, hold=2):
     """A41: multi-level hysteresis threshold (Schmitt trigger) with a `hold`-sample debounce."""
+    k = len(valleys) + 1
+    return CODES.get(k, np.arange(k))[_threshold(x, valleys, delta, hold)].astype(np.int8)
+
+
+def _threshold(x, valleys, delta, hold):
     up, down, out = valleys + delta, valleys - delta, np.empty(len(x), np.int8)
     cur = cand = int(np.searchsorted(valleys, x[0])); cnt = 0
     for i, v in enumerate(x):
@@ -60,7 +74,7 @@ def _rank(means):
 def gmm(x, k=4, x_fit=None, seed=0):
     """A42: GMM on log current; components sorted by mean -> states 0..k-1."""
     g = GaussianMixture(k, random_state=seed).fit((x if x_fit is None else x_fit).reshape(-1, 1))
-    return _rank(g.means_)[g.predict(x.reshape(-1, 1))].astype(np.int8), g
+    return CODES[k][_rank(g.means_)[g.predict(x.reshape(-1, 1))]].astype(np.int8), g
 
 
 def hmm(x, lengths, g, x_fit=None, len_fit=None, n_iter=30):
@@ -73,7 +87,7 @@ def hmm(x, lengths, g, x_fit=None, len_fit=None, n_iter=30):
     if x_fit is None:
         x_fit, len_fit = x, lengths
     h.fit(x_fit.reshape(-1, 1), len_fit)
-    return _rank(h.means_)[h.predict(x.reshape(-1, 1), lengths)].astype(np.int8), h
+    return CODES[k][_rank(h.means_)[h.predict(x.reshape(-1, 1), lengths)]].astype(np.int8), h
 
 
 def runs(s):

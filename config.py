@@ -21,5 +21,10 @@ TZ_DATA      = "UTC"                          # sensors, status log, maintenance
 TZ_LOCAL     = "Asia/Jakarta"                 # emergencies are logged in local time (WIB)
 DUCKDB_TEMP  = "E:/duckdb_tmp"
 
+# Detection: number of physical states per machine, read from each machine's log-current histogram
+STATES  = {3: 3,   # off, panel, operating (no separate 'started' level)
+           4: 4}   # off, panel, started, cutting
+NOISE_A = 0.05     # A; sensor noise floor, currents below this are treated as 0 (off)
+
 for _p in (SILVER, INTERIM, FIG, TAB):
     _p.mkdir(parents=True, exist_ok=True)
